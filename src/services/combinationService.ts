@@ -44,6 +44,7 @@ export const createCombination = async (
     return {
       id: String(combination.id),
       name: combination.name,
+      status: combination.status,
       skillIds: data.skillIds,
       createdAt: combination.created_at,
       updatedAt: combination.updated_at,
@@ -56,13 +57,30 @@ export const createCombination = async (
   }
 };
 
+export const updateCombinationStatus = async (
+  id: string,
+  status: "natural" | "needs-work" | null,
+) => {
+  const result = await pool.query(
+    `UPDATE user_combinations
+     SET status = $1
+     WHERE combination_id = $2
+     RETURNING id, name, status`,
+    [status, id],
+  );
+
+  return result.rows[0] ?? null;
+};
+
 export const getCombinations = async (): Promise<Combination[]> => {
   const result = await pool.query(`
     SELECT
       c.id,
       c.name,
+      c.status,
       c.created_at,
       c.updated_at,
+      uc.status,
       COALESCE(
         json_agg(cs.skill_id ORDER BY cs.position)
           FILTER (WHERE cs.skill_id IS NOT NULL),
@@ -71,7 +89,9 @@ export const getCombinations = async (): Promise<Combination[]> => {
     FROM combinations c
     LEFT JOIN combination_skills cs
       ON cs.combination_id = c.id
-    GROUP BY c.id
+       LEFT JOIN user_combinations uc 
+       ON uc.combination_id = c.id
+    GROUP BY c.id, uc.status
     ORDER BY c.created_at DESC
   `);
 
@@ -81,6 +101,7 @@ export const getCombinations = async (): Promise<Combination[]> => {
     skillIds: row.skill_ids,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    status: row.status,
   }));
 };
 
@@ -92,6 +113,7 @@ export const getCombinationById = async (
       SELECT
         c.id,
         c.name,
+        c.status,
         c.created_at,
         c.updated_at,
         COALESCE(
@@ -106,13 +128,13 @@ export const getCombinationById = async (
       GROUP BY c.id
     `,
     [id],
-  )
+  );
 
   if (result.rows.length === 0) {
-    return null
+    return null;
   }
 
-  const row = result.rows[0]
+  const row = result.rows[0];
 
   return {
     id: String(row.id),
@@ -120,5 +142,6 @@ export const getCombinationById = async (
     skillIds: row.skill_ids,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  }
-}
+    status: row.status,
+  };
+};

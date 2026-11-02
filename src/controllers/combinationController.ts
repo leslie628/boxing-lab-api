@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { createCombination, getCombinations , getCombinationById} from '../services/combinationService.js'
+import { createCombination, getCombinations , getCombinationById, updateCombinationStatus as updateCombinationStatusService} from '../services/combinationService.js'
 import type { CreateCombinationRequest } from '../types/combination.js'
 
 export const postCombination = async (
@@ -32,6 +32,41 @@ export const postCombination = async (
 
     res.status(500).json({
       message: 'Failed to create combination.',
+    })
+  }
+}
+
+export const updateCombinationStatus = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { status } = req.body
+
+    if (
+      status !== null &&
+      status !== 'natural' &&
+      status !== 'needs-work'
+    ) {
+      return res.status(400).json({ message: 'Invalid combination status' })
+    }
+
+    const combinationId = req.params.id
+
+    if (typeof combinationId !== 'string') {
+      return res.status(400).json({ message: 'Invalid combination ID' })
+    }
+
+    const combination = await updateCombinationStatusService(combinationId, status)
+
+    if (!combination) {
+      return res.status(404).json({ message: 'Combination not found' })
+    }
+
+    return res.json(combination)
+  } catch {
+    return res.status(500).json({
+      message: 'Failed to update combination status',
     })
   }
 }

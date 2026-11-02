@@ -4,4 +4,5 @@ export interface Skill {
   category: string;
   description: string;
   createdAt:string;
+  status: 'natural' | 'needs-work' | null
 }

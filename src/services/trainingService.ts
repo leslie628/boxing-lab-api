@@ -39,6 +39,31 @@ export const createTrainingSession = async (
         [session.id, combinationId],
       );
     }
+    // Update only skills that were assessed
+    for (const { id, status } of data.skillAssessments ?? []) {
+      await client.query(
+        `INSERT INTO user_skills (skill_id, status)
+     VALUES ($1, $2)
+     ON CONFLICT (skill_id)
+     DO UPDATE SET
+       status = EXCLUDED.status,
+       updated_at = NOW()`,
+        [id, status],
+      );
+    }
+
+    // Update only combinations that were assessed
+    for (const { id, status } of data.combinationAssessments ?? []) {
+      await client.query(
+        `INSERT INTO user_combinations (combination_id, status)
+     VALUES ($1, $2)
+     ON CONFLICT (combination_id)
+     DO UPDATE SET
+       status = EXCLUDED.status,
+       updated_at = NOW()`,
+        [id, status],
+      );
+    }
 
     await client.query("COMMIT");
 
@@ -84,7 +109,7 @@ export const getTrainingSessions = async (): Promise<TrainingSession[]> => {
       ON tsc.training_session_id = ts.id
     GROUP BY ts.id
     ORDER BY ts.session_date DESC, ts.id DESC
-  `)
+  `);
 
   return result.rows.map((row) => ({
     id: String(row.id),
@@ -94,5 +119,5 @@ export const getTrainingSessions = async (): Promise<TrainingSession[]> => {
     combinationIds: row.combination_ids.map(String),
     notes: row.notes,
     createdAt: row.created_at.toISOString(),
-  }))
-}
+  }));
+};
