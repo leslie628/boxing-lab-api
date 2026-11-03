@@ -21,6 +21,10 @@ export interface TrainingSession {
   durationMinutes: number;
   skillIds: string[];
   combinationIds: string[];
+  combinations?: {
+    id: number;
+    status: "natural" | "needs-work" | null;
+  }[];
   notes: string;
   createdAt: string;
 }

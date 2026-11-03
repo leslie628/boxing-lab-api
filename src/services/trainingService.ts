@@ -101,7 +101,23 @@ export const getTrainingSessions = async (): Promise<TrainingSession[]> => {
         ARRAY_AGG(DISTINCT tsc.combination_id)
           FILTER (WHERE tsc.combination_id IS NOT NULL),
         ARRAY[]::BIGINT[]
-      ) AS combination_ids
+      ) AS combination_ids,
+       (
+    SELECT COALESCE(
+      JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'id', tsc2.combination_id,
+          'status', uc.status
+        )
+      ),
+      '[]'::json
+    )
+    FROM training_session_combinations tsc2
+    LEFT JOIN user_combinations uc
+      ON uc.combination_id = tsc2.combination_id
+    WHERE tsc2.training_session_id = ts.id
+  ) AS combinations
+
     FROM training_sessions ts
     LEFT JOIN training_session_skills tss
       ON tss.training_session_id = ts.id
@@ -118,6 +134,7 @@ export const getTrainingSessions = async (): Promise<TrainingSession[]> => {
     skillIds: row.skill_ids,
     combinationIds: row.combination_ids.map(String),
     notes: row.notes,
+    combinations: row.combinations,
     createdAt: row.created_at.toISOString(),
   }));
 };
