@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { createCombination, getCombinations , getCombinationById, updateCombinationStatus as updateCombinationStatusService} from '../services/combinationService.js'
 import type { CreateCombinationRequest } from '../types/combination.js'
-
+import { generateAICombinations } from "../services/aiCombinationService.js";
 export const postCombination = async (
   req: Request,
   res: Response,
@@ -112,3 +112,28 @@ export const getCombination = async (
     res.status(500).json({ message: 'Failed to fetch combination.' })
   }
 }
+
+export const getAICombinationSuggestions = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { scenario } = req.body;
+
+    if (!scenario?.trim()) {
+      return res.status(400).json({
+        message: "Please describe a boxing situation.",
+      });
+    }
+
+    const result = await generateAICombinations({ scenario });
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("AI combination generation failed:", error);
+
+    return res.status(500).json({
+      message: "Failed to generate AI combination suggestions.",
+    });
+  }
+};
