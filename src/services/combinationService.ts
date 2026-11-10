@@ -3,6 +3,7 @@ import type {
   Combination,
   CreateCombinationRequest,
 } from "../types/combination.js";
+import { DeleteCombinationResult } from "../types/deleteCombinationResult.js";
 
 export const createCombination = async (
   data: CreateCombinationRequest,
@@ -49,6 +50,72 @@ export const createCombination = async (
       createdAt: combination.created_at,
       updatedAt: combination.updated_at,
     };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const deleteCombination = async (
+  id: string,
+): Promise<DeleteCombinationResult> => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const combinationResult = await client.query(
+      `SELECT 1
+       FROM combinations
+       WHERE id = $1
+       LIMIT 1`,
+      [id],
+    );
+
+    if (combinationResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return "not_found";
+    }
+
+    const usageResult = await client.query(
+      `SELECT 1
+      FROM training_session_combinations
+      WHERE combination_id = $1
+      LIMIT 1`,
+      [id],
+    );
+
+    if (usageResult.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return "in_use";
+    }
+
+    await client.query(
+      `DELETE FROM combination_skills
+       WHERE combination_id = $1`,
+      [id],
+    );
+
+    await client.query(
+      `DELETE FROM user_combinations
+       WHERE combination_id = $1`,
+      [id],
+    );
+
+    const result = await client.query(
+      `DELETE FROM combinations
+       WHERE id = $1
+       RETURNING id`,
+      [id],
+    );
+
+    await client.query("COMMIT");
+    if (result.rowCount === 0) {
+      return "not_found";
+    }
+
+    return "deleted";
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
